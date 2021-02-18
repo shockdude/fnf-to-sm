@@ -134,7 +134,7 @@ def fnf_to_sm(infile):
 			for i in range(num_sections):
 				section = song_notes[i]
 					
-				if section["changeBPM"]:
+				if section.get("changeBPM", 0) != 0:
 					section_bpm = float(section["bpm"])
 				elif current_bpm == None:
 					section_bpm = song_bpm

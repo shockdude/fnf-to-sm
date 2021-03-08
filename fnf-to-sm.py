@@ -23,7 +23,7 @@ import math
 import sys
 import os
 
-VERSION = "v0.1"
+VERSION = "v0.1.1"
 
 SM_EXT = ".sm"
 SSC_EXT = ".ssc"

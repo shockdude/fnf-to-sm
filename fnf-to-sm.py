@@ -29,6 +29,8 @@ SM_EXT = ".sm"
 SSC_EXT = ".ssc"
 FNF_EXT = ".json"
 
+DIFF_LIST = ["Easy", "Hard"]
+
 # stepmania editor's default note precision is 1/192
 MEASURE_TICKS = 192
 BEAT_TICKS = 48
@@ -95,37 +97,35 @@ def fnf_to_sm(infile):
 	# given a normal difficulty .json,
 	# try to detect all 3 FNF difficulties if possible
 	infile_name, infile_ext = os.path.splitext(infile)
-	infile_easy = infile_name + "-easy" + FNF_EXT
-	infile_hard = infile_name + "-hard" + FNF_EXT
 	
-	with open(infile, "r") as chartfile:
-		chart_json = json.loads(chartfile.read().strip('\0'))
-		chart_json["diff"] = "Medium"
-		chart_jsons.append(chart_json)
+	def loadDiff(name, diff):
+		if os.path.isfile(name):
+			with open(name, "r") as chartfile:
+				chart_json = json.loads(chartfile.read().strip('\0'))
+				chart_json["diff"] = diff
+				chart_jsons.append(chart_json)
+
+	loadDiff(infile, "Medium")
 		
-	if os.path.isfile(infile_easy):
-		with open(infile_easy, "r") as chartfile:
-			chart_json = json.loads(chartfile.read().strip('\0'))
-			chart_json["diff"] = "Easy"
-			chart_jsons.append(chart_json)
-			
-	if os.path.isfile(infile_hard):
-		with open(infile_hard, "r") as chartfile:
-			chart_json = json.loads(chartfile.read().strip('\0'))
-			chart_json["diff"] = "Hard"
-			chart_jsons.append(chart_json)
+	for i in DIFF_LIST:
+		filename = infile_name + "-" + i.lower() + FNF_EXT
+		loadDiff(filename, i)
 
 	# for each fnf difficulty
 	sm_header = ''
 	sm_notes = ''
 	for chart_json in chart_jsons:
-		song_notes = chart_json["notes"]
-		num_sections = chart_json["sections"]
+		song = chart_json["song"]
+		song_name = song["song"]
+		try:
+			song_notes = chart_json["notes"]
+			song_bpm = chart_json["bpm"]
+		except KeyError:
+			song_notes = song["notes"]
+			song_bpm = song["bpm"]
+		num_sections = len(song_notes)
 		# build sm header if it doesn't already exist
 		if len(sm_header) == 0:
-			song_name = chart_json["song"]["song"]
-			song_bpm = chart_json["bpm"]
-
 			# build tempomap
 			bpms = "#BPMS:"
 			current_bpm = None
@@ -197,42 +197,54 @@ def fnf_to_sm(infile):
 				if last_note <= tick:
 					last_note = tick + 1
 
+
+		dance_single = False
 		if len(notes) > 0:
-			# write chart & difficulty info
-			sm_notes += "\n"
-			sm_notes += "#NOTES:\n"
-			sm_notes += "	  dance-double:\n"
-			sm_notes += "	  :\n"
-			sm_notes += "	  {}:\n".format(chart_json["diff"]) # e.g. Challenge:
-			sm_notes += "	  {}:\n".format(diff_value)
-			sm_notes += "	  :\n" # empty groove radar
+			if dance_single is True:
+				# write chart & difficulty info
+				sm_notes += "\n"
+				sm_notes += "#NOTES:\n"
+				sm_notes += "	  dance-single:\n"
+				sm_notes += "	  :\n"
+				sm_notes += "	  {}:\n".format(chart_json["diff"]) # e.g. Challenge:
+				sm_notes += "	  {}:\n".format(diff_value)
+				sm_notes += "	  :\n" # empty groove radar
+			else:
+				# write chart & difficulty info
+				sm_notes += "\n"
+				sm_notes += "#NOTES:\n"
+				sm_notes += "	  dance-double:\n"
+				sm_notes += "	  :\n"
+				sm_notes += "	  {}:\n".format(chart_json["diff"]) # e.g. Challenge:
+				sm_notes += "	  {}:\n".format(diff_value)
+				sm_notes += "	  :\n" # empty groove radar
 
-			# ensure the last measure has the correct number of lines
-			if last_note % MEASURE_TICKS != 0:
-				last_note += MEASURE_TICKS - (last_note % MEASURE_TICKS)
+				# ensure the last measure has the correct number of lines
+				if last_note % MEASURE_TICKS != 0:
+					last_note += MEASURE_TICKS - (last_note % MEASURE_TICKS)
 
-			# add notes for each measure
-			for measureStart in range(0, last_note, MEASURE_TICKS):
-				measureEnd = measureStart + MEASURE_TICKS
-				valid_indexes = set()
-				for i in range(measureStart, measureEnd):
-					if i in notes:
-						valid_indexes.add(i - measureStart)
-				
-				noteStep = measure_gcd(valid_indexes, MEASURE_TICKS)
+				# add notes for each measure
+				for measureStart in range(0, last_note, MEASURE_TICKS):
+					measureEnd = measureStart + MEASURE_TICKS
+					valid_indexes = set()
+					for i in range(measureStart, measureEnd):
+						if i in notes:
+							valid_indexes.add(i - measureStart)
+					
+					noteStep = measure_gcd(valid_indexes, MEASURE_TICKS)
 
-				for i in range(measureStart, measureEnd, noteStep):
-					if i not in notes:
-						sm_notes += '0'*NUM_COLUMNS + '\n'
+					for i in range(measureStart, measureEnd, noteStep):
+						if i not in notes:
+							sm_notes += '0'*NUM_COLUMNS + '\n'
+						else:
+							for digit in notes[i]:
+								sm_notes += str(digit)
+							sm_notes += '\n'
+
+					if measureStart + MEASURE_TICKS == last_note:
+						sm_notes += ";\n"
 					else:
-						for digit in notes[i]:
-							sm_notes += str(digit)
-						sm_notes += '\n'
-
-				if measureStart + MEASURE_TICKS == last_note:
-					sm_notes += ";\n"
-				else:
-					sm_notes += ',\n'
+						sm_notes += ',\n'
 
 	# output simfile
 	with open("{}.sm".format(song_name), "w") as outfile:
@@ -294,13 +306,15 @@ def sm_to_fnf(infile):
 
 			# regex for a sm note row
 			notes_re = re.compile("^[\\dM][\\dM][\\dM][\\dM]$")
-
 			# TODO support SSC
 			if line.strip() == "#NOTES:":
 				line = chartfile.readline()
-				if line.strip() != "dance-single:":
+				isDouble = (line.strip() == "dance-double:")
+				notes_re = re.compile("^[\\dM][\\dM][\\dM][\\dM][\\dM][\\dM][\\dM][\\dM]$") if isDouble else note_re 
+				if (line.strip() != "dance-single:") and (not isDouble):
 					line = chartfile.readline()
 					continue
+
 				chartfile.readline()
 				line = chartfile.readline()
 				
@@ -322,7 +336,6 @@ def sm_to_fnf(infile):
 					
 					# for ticks-to-time, ticks don't have to be integer :)
 					ticks_per_row = float(MEASURE_TICKS) / len(measure_notes)
-					
 					fnf_section = {}
 					fnf_section["lengthInSteps"] = 16
 					fnf_section["bpm"] = tickToBPM(section_number * MEASURE_TICKS)
@@ -333,6 +346,26 @@ def sm_to_fnf(infile):
 					fnf_section["mustHitSection"] = True
 					fnf_section["typeOfSection"] = 0
 					
+					if isDouble:
+						sectionRequired = False
+						opponentNotes = 0
+						playerNotes = 0
+						for i in measure_notes:
+							opponentNotes += len(i[:4].replace("0", ""))
+							playerNotes += len(i[4:].replace("0", ""))
+						if opponentNotes != 0:
+							percentage = (playerNotes/opponentNotes)
+							if percentage > 0.5:
+								sectionRequired = True
+						else:
+							sectionRequired = True
+						fnf_section["mustHitSection"] = sectionRequired
+						if sectionRequired: # If sectionRequired that means player1 is now on the left side instead of the right. Reverse measure_notes
+							for i in range(len(measure_notes)):
+								leftSide = measure_notes[i][:4]
+								rightSide = measure_notes[i][4:]
+								measure_notes[i] = rightSide + leftSide
+
 					section_notes = []
 					for i in range(len(measure_notes)):
 						notes_row = measure_notes[i]
@@ -363,8 +396,8 @@ def sm_to_fnf(infile):
 	# assemble the fnf json
 	chart_json = {}
 	chart_json["song"] = {}
-	#chart_json["song"]["song"] = title
-	chart_json["song"]["song"] = "Blammed"
+	chart_json["song"]["song"] = title if title is not None else "Blammed"
+	# chart_json["song"]["song"] = "Blammed"
 	chart_json["song"]["notes"] = fnf_notes
 	chart_json["song"]["bpm"] = tempomarkers[0].getBPM()
 	chart_json["song"]["sections"] = 0

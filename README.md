@@ -11,6 +11,7 @@ easy & hard .jsons in the same folder, then FNF-to-SM will output \
 a single .sm with all 3 difficulties.
 
 SM-to-FNF currently only supports Challenge Single difficulty. \
+This fork adds Challenge Double difficulty. `must-hit-section`s are automatically calculated based on note count per section. \
 The output "blammed.json" is meant to replace "Blammed", Normal difficulty.
 
 Written by shockdude in Python 3.7 \

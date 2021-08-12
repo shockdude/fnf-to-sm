@@ -39,6 +39,8 @@ STEP_TICKS = 12
 
 NUM_COLUMNS = 8
 
+SM_DIFFS = ["Beginner", "Easy", "Medium", "Hard", "Insane", "Challenge", "Edit"]
+
 # borrowed from my Sharktooth code
 class TempoMarker:
 	def __init__(self, bpm, tick_pos, time_pos):
@@ -286,7 +288,7 @@ def parse_sm_bpms(bpm_string):
 			current_time = tickToTime(current_tick)
 			tempomarkers.append(TempoMarker(current_bpm, current_tick, current_time))
 
-def sm_to_fnf(infile):
+def sm_to_fnf(infile, diff="challenge"):
 	title = "Simfile"
 	fnf_notes = []
 	section_number = 0
@@ -326,7 +328,7 @@ def sm_to_fnf(infile):
 				line = chartfile.readline()
 				
 				# TODO support difficulties other than Challenge
-				if line.strip() != "Challenge:":
+				if line.strip().lower() != "{}:".format(diff):
 				#if line.strip() != "Hard:":
 					line = chartfile.readline()
 					continue
@@ -430,11 +432,15 @@ def main():
 		usage()
 	
 	infile = sys.argv[1]
+	if len(sys.argv) < 3:
+		diff = None
+	else:
+		diff = sys.argv[2]
 	infile_name, infile_ext = os.path.splitext(os.path.basename(infile))
 	if infile_ext == FNF_EXT:
 		fnf_to_sm(infile)
 	elif infile_ext == SM_EXT:
-		sm_to_fnf(infile)
+		sm_to_fnf(infile, diff)
 	else:
 		print("Error: unsupported file {}".format(infile))
 		usage()

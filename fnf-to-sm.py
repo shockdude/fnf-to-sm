@@ -23,7 +23,7 @@ import math
 import sys
 import os
 
-VERSION = "v0.1.1"
+VERSION = "v0.1.2"
 
 SM_EXT = ".sm"
 SSC_EXT = ".ssc"
@@ -115,17 +115,25 @@ def fnf_to_sm(infile):
 	sm_header = ''
 	sm_notes = ''
 	for chart_json in chart_jsons:
-		song = chart_json["song"]
-		song_name = song["song"]
-		try:
-			song_notes = chart_json["notes"]
-			song_bpm = chart_json["bpm"]
-		except KeyError:
-			song_notes = song["notes"]
-			song_bpm = song["bpm"]
+# 		song = chart_json["song"]
+# 		song_name = song["song"]
+# 		try:
+# 			song_notes = chart_json["notes"]
+# 			song_bpm = chart_json["bpm"]
+# 		except KeyError:
+# 			song_notes = song["notes"]
+# 			song_bpm = song["bpm"]
+# 		num_sections = len(song_notes)
+# 		# build sm header if it doesn't already exist
+# 		if len(sm_header) == 0:
+		song_notes = chart_json["song"]["notes"]
 		num_sections = len(song_notes)
 		# build sm header if it doesn't already exist
 		if len(sm_header) == 0:
+			song_name = chart_json["song"]["song"]
+			song_bpm = chart_json["song"]["bpm"]
+			
+			print("Converting {} to {}.sm".format(infile, song_name))
 			# build tempomap
 			bpms = "#BPMS:"
 			current_bpm = None
@@ -176,7 +184,6 @@ def fnf_to_sm(infile):
 				if section["mustHitSection"]:
 					note = (note + 4) % 8
 				length = section_note[2]
-				print(tick, note, length)
 				
 				# Initialize a note for this tick position
 				if tick not in notes:
@@ -284,13 +291,13 @@ def sm_to_fnf(infile):
 	fnf_notes = []
 	section_number = 0
 	offset = 0
+	print("Converting {} to blammed.json".format(infile))
 	with open(infile, "r") as chartfile:
 		line = chartfile.readline()
 		while len(line) > 0:
 			value = get_tag_value(line, "TITLE")
 			if value != None:
 				title = value
-				print(title)
 				line = chartfile.readline()
 				continue
 			value = get_tag_value(line, "OFFSET")
@@ -406,9 +413,6 @@ def sm_to_fnf(infile):
 	chart_json["song"]["player2"] = "pico"
 	chart_json["song"]["sectionLengths"] = []
 	chart_json["song"]["speed"] = 2.0
-	chart_json["bpm"] = tempomarkers[0].getBPM()
-	chart_json["sections"] = section_number
-	chart_json["notes"] = fnf_notes
 	
 	#with open("{}.json".format(title), "w") as outfile:
 	with open("blammed.json".format(title), "w") as outfile:

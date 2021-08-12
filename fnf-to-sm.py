@@ -183,6 +183,12 @@ def fnf_to_sm(infile):
 			for section_note in section_notes:
 				tick = timeToTick(section_note[0])
 				note = section_note[1]
+
+				# tricky compability
+				ismine = False
+				if note > 7:
+					ismine = True
+				note = note % 8
 				if section["mustHitSection"]:
 					note = (note + 4) % 8
 				length = section_note[2]
@@ -191,17 +197,20 @@ def fnf_to_sm(infile):
 				if tick not in notes:
 					notes[tick] = [0]*NUM_COLUMNS
 
-				if length == 0:
-					notes[tick][note] = 1
+				if ismine:
+					notes[tick][note] = "M"
 				else:
-					notes[tick][note] = 2
-					# 3 is "long note toggle off", so we need to set it after a 2
-					long_end = timeToTick(section_note[0] + section_note[2])
-					if long_end not in notes:
-						notes[long_end] = [0]*NUM_COLUMNS
-					notes[long_end][note] = 3
-					if last_note < long_end:
-						last_note = long_end
+					if length == 0:
+						notes[tick][note] = 1
+					else:
+						notes[tick][note] = 2
+						# 3 is "long note toggle off", so we need to set it after a 2
+						long_end = timeToTick(section_note[0] + section_note[2])
+						if long_end not in notes:
+							notes[long_end] = [0]*NUM_COLUMNS
+						notes[long_end][note] = 3
+						if last_note < long_end:
+							last_note = long_end
 
 				if last_note <= tick:
 					last_note = tick + 1

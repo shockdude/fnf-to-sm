@@ -293,7 +293,6 @@ def sm_to_fnf(infile, diff="challenge"):
 	fnf_notes = []
 	section_number = 0
 	offset = 0
-	print("Converting {} to blammed.json".format(infile))
 	with open(infile, "r") as chartfile:
 		line = chartfile.readline()
 		while len(line) > 0:
@@ -403,9 +402,10 @@ def sm_to_fnf(infile, diff="challenge"):
 			line = chartfile.readline()
 			
 	# assemble the fnf json
+	cool = title if title is not None else "Blammed"
 	chart_json = {}
 	chart_json["song"] = {}
-	chart_json["song"]["song"] = title if title is not None else "Blammed"
+	chart_json["song"]["song"] = cool
 	# chart_json["song"]["song"] = "Blammed"
 	chart_json["song"]["notes"] = fnf_notes
 	chart_json["song"]["bpm"] = tempomarkers[0].getBPM()
@@ -417,8 +417,9 @@ def sm_to_fnf(infile, diff="challenge"):
 	chart_json["song"]["speed"] = 2.0
 	
 	#with open("{}.json".format(title), "w") as outfile:
-	with open("blammed.json".format(title), "w") as outfile:
+	with open("{}.json".format(cool), "w") as outfile:
 		json.dump(chart_json, outfile)
+	print("Converted {} to {}.json".format(infile, cool))
 
 def usage():
 	print("FNF SM converter")

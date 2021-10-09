@@ -93,7 +93,12 @@ def tickToBPM(tick):
 			return tempomarkers[i].getBPM()
 	return 0.0
 
-def fnf_to_sm(infile):
+def get_songname(infile):
+	with open(infile, "r") as chart:
+		chart_json = json.loads(chart.read().strip('\0'))
+		return chart_json["song"]["song"]
+
+def fnf_to_sm(infile, outfile=None):
 	chart_jsons = []
 	
 	# given a normal difficulty .json,
@@ -135,7 +140,9 @@ def fnf_to_sm(infile):
 			song_name = chart_json["song"]["song"]
 			song_bpm = chart_json["song"]["bpm"]
 			
-			print("Converting {} to {}.sm".format(infile, song_name))
+			fart = outfile if outfile is not None else song_name
+
+			print("Converting {} to {}.sm".format(infile, fart))
 			# build tempomap
 			bpms = "#BPMS:"
 			current_bpm = None
@@ -271,7 +278,7 @@ def fnf_to_sm(infile):
 					sm_notes += ',\n'
 
 	# output simfile
-	with open("{}.sm".format(song_name), "w") as outfile:
+	with open("{}.sm".format(fart), "w") as outfile:
 		outfile.write(sm_header)
 		if len(sm_notes) > 0:
 			outfile.write(sm_notes)

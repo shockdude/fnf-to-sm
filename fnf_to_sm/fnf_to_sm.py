@@ -175,8 +175,10 @@ def fnf_to_sm(infile):
 		notes = {}
 		last_note = 0
 		diff_value = 1
-
+		dance_single = True
 		# convert note timestamps to ticks
+		if dance_single is True:
+			NUM_COLUMNS = 4
 		for i in range(num_sections):
 			section = song_notes[i]
 			section_notes = section["sectionNotes"]
@@ -189,8 +191,22 @@ def fnf_to_sm(infile):
 				if note > 7:
 					ismine = True
 				note = note % 8
-				if section["mustHitSection"]:
-					note = (note + 4) % 8
+
+				if dance_single is False:
+					if section["mustHitSection"]:
+						note = (note + 4) % 8
+				else:
+					# Merge both parts by looking at mustHitSection
+					# now that i look at it i dont know how this works
+					discard = False
+					if section["mustHitSection"]:
+						note = (note + 4) % 8
+						if note < 4:
+							discard = True
+					note = note%4
+					if discard is True:
+						continue
+
 				length = section_note[2]
 				
 				# Initialize a note for this tick position
@@ -211,58 +227,48 @@ def fnf_to_sm(infile):
 						notes[long_end][note] = 3
 						if last_note < long_end:
 							last_note = long_end
-
 				if last_note <= tick:
 					last_note = tick + 1
 
-
-		dance_single = False
 		if len(notes) > 0:
-			if dance_single is True:
-				# write chart & difficulty info
-				sm_notes += "\n"
-				sm_notes += "#NOTES:\n"
+			# write chart & difficulty info
+			sm_notes += "\n"
+			sm_notes += "#NOTES:\n"
+			if dance_single:
 				sm_notes += "	  dance-single:\n"
-				sm_notes += "	  :\n"
-				sm_notes += "	  {}:\n".format(chart_json["diff"]) # e.g. Challenge:
-				sm_notes += "	  {}:\n".format(diff_value)
-				sm_notes += "	  :\n" # empty groove radar
 			else:
-				# write chart & difficulty info
-				sm_notes += "\n"
-				sm_notes += "#NOTES:\n"
 				sm_notes += "	  dance-double:\n"
-				sm_notes += "	  :\n"
-				sm_notes += "	  {}:\n".format(chart_json["diff"]) # e.g. Challenge:
-				sm_notes += "	  {}:\n".format(diff_value)
-				sm_notes += "	  :\n" # empty groove radar
+			sm_notes += "	  :\n"
+			sm_notes += "	  {}:\n".format(chart_json["diff"]) # e.g. Challenge:
+			sm_notes += "	  {}:\n".format(diff_value)
+			sm_notes += "	  :\n" # empty groove radar
 
-				# ensure the last measure has the correct number of lines
-				if last_note % MEASURE_TICKS != 0:
-					last_note += MEASURE_TICKS - (last_note % MEASURE_TICKS)
+			# ensure the last measure has the correct number of lines
+			if last_note % MEASURE_TICKS != 0:
+				last_note += MEASURE_TICKS - (last_note % MEASURE_TICKS)
 
-				# add notes for each measure
-				for measureStart in range(0, last_note, MEASURE_TICKS):
-					measureEnd = measureStart + MEASURE_TICKS
-					valid_indexes = set()
-					for i in range(measureStart, measureEnd):
-						if i in notes:
-							valid_indexes.add(i - measureStart)
-					
-					noteStep = measure_gcd(valid_indexes, MEASURE_TICKS)
+			# add notes for each measure
+			for measureStart in range(0, last_note, MEASURE_TICKS):
+				measureEnd = measureStart + MEASURE_TICKS
+				valid_indexes = set()
+				for i in range(measureStart, measureEnd):
+					if i in notes:
+						valid_indexes.add(i - measureStart)
+				
+				noteStep = measure_gcd(valid_indexes, MEASURE_TICKS)
 
-					for i in range(measureStart, measureEnd, noteStep):
-						if i not in notes:
-							sm_notes += '0'*NUM_COLUMNS + '\n'
-						else:
-							for digit in notes[i]:
-								sm_notes += str(digit)
-							sm_notes += '\n'
-
-					if measureStart + MEASURE_TICKS == last_note:
-						sm_notes += ";\n"
+				for i in range(measureStart, measureEnd, noteStep):
+					if i not in notes:
+						sm_notes += '0'*NUM_COLUMNS + '\n'
 					else:
-						sm_notes += ',\n'
+						for digit in notes[i]:
+							sm_notes += str(digit)
+						sm_notes += '\n'
+
+				if measureStart + MEASURE_TICKS == last_note:
+					sm_notes += ";\n"
+				else:
+					sm_notes += ',\n'
 
 	# output simfile
 	with open("{}.sm".format(song_name), "w") as outfile:
@@ -297,7 +303,7 @@ def parse_sm_bpms(bpm_string):
 			current_time = tickToTime(current_tick)
 			tempomarkers.append(TempoMarker(current_bpm, current_tick, current_time))
 
-def sm_to_fnf(infile, diff="challenge"):
+def sm_to_fnf(infile, diff="challenge", duet=False):
 	title = "Simfile"
 	fnf_notes = []
 	section_number = 0
@@ -327,7 +333,7 @@ def sm_to_fnf(infile, diff="challenge"):
 			if line.strip() == "#NOTES:":
 				line = chartfile.readline()
 				isDouble = (line.strip() == "dance-double:")
-				notes_re = re.compile("^[\\dM][\\dM][\\dM][\\dM][\\dM][\\dM][\\dM][\\dM]$") if isDouble else note_re 
+				notes_re = re.compile("^[\\dM][\\dM][\\dM][\\dM][\\dM][\\dM][\\dM][\\dM]$") if isDouble else re.compile("^[\\dM][\\dM][\\dM][\\dM]$") 
 				if (line.strip() != "dance-single:") and (not isDouble):
 					line = chartfile.readline()
 					continue
@@ -382,6 +388,10 @@ def sm_to_fnf(infile, diff="challenge"):
 								leftSide = measure_notes[i][:4]
 								rightSide = measure_notes[i][4:]
 								measure_notes[i] = rightSide + leftSide
+
+					if duet is True and isDouble is False:
+						for i in range(len(measure_notes)):
+							measure_notes[i] = measure_notes[i] + measure_notes[i]
 
 					section_notes = []
 					for i in range(len(measure_notes)):
@@ -450,7 +460,7 @@ def main():
 	if infile_ext == FNF_EXT:
 		fnf_to_sm(infile)
 	elif infile_ext == SM_EXT:
-		sm_to_fnf(infile, diff)
+		sm_to_fnf(infile, diff, True)
 	else:
 		print("Error: unsupported file {}".format(infile))
 		usage()

@@ -186,12 +186,22 @@ def fnf_to_sm(infile, outfile=None):
 		# convert note timestamps to ticks
 		if dance_single is True:
 			NUM_COLUMNS = 4
+		else:
+			NUM_COLUMNS = 8
 		for i in range(num_sections):
 			section = song_notes[i]
 			section_notes = section["sectionNotes"]
+			#0 1 2 3, 4 5 6 7
+			# seen = set()
+			# ticks = [x[0] for x in section_notes]
+			# dupticks = [x for x in ticks if x in seen or seen.add(x)]
+			#print(f"duet or jump at {list(dupticks)}\n{ticks}")
 			for section_note in section_notes:
 				tick = timeToTick(section_note[0])
 				note = section_note[1]
+				note = int(note)
+
+				# hasDuetOrJump = (section_note[0] in dupticks)
 
 				# tricky compability
 				ismine = False
@@ -199,20 +209,20 @@ def fnf_to_sm(infile, outfile=None):
 					ismine = True
 				note = note % 8
 
-				if dance_single is False:
-					if section["mustHitSection"]:
+				if section["mustHitSection"]:
 						note = (note + 4) % 8
-				else:
-					# Merge both parts by looking at mustHitSection
-					# now that i look at it i dont know how this works
-					discard = False
-					if section["mustHitSection"]:
-						note = (note + 4) % 8
-						if note < 4:
-							discard = True
-					note = note%4
-					if discard is True:
+
+				if dance_single is True:
+					notes_arr = [x[1] % 8 for x in section_notes]
+					val_arr = [x >= 4 for x in notes_arr]
+					if len(val_arr) <= 0:
+						score = 100
+					else:
+						score = (val_arr.count(True)/len(val_arr))*100
+					# print(f"{val_arr.count(True)} out of {len(val_arr)} ({score}%)")
+					if score > 0:
 						continue
+					note = note%4
 
 				length = section_note[2]
 				

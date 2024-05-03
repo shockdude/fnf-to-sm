@@ -1,4 +1,9 @@
-# FNF/SM converter
+# FNF/SM converter (Archived)
+This converter no longer works with FNF charts as of version 0.3.0 (and probably earlier). \
+I don't have plans to update this converter, so this repository will remain archived. There are other, better FNF/SM converters out there.
+
+Original README is as follows:
+
 Roughly convert Friday Night Funkin .json charts to doubles simfiles for StepMania \
 Or convert StepMania simfiles to FNF charts. \
 Very WIP but it works, kinda.
